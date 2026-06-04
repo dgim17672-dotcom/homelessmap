@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarbonTrack</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0a;
+    --surface: #111711;
+    --card: #161e16;
+    --border: #1f2e1f;
+    --green: #22c55e;
+    --green-dim: #16a34a;
+    --green-glow: rgba(34,197,94,0.15);
+    --red: #ef4444;
+    --yellow: #eab308;
+    --text: #e8f5e8;
+    --text-dim: #6b8f6b;
+    --text-muted: #3d5c3d;
+    --accent: #4ade80;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity:0.4;
+    pointer-events:none;
+    z-index:0;
+  }
+  .app { position:relative; z-index:1; max-width:480px; margin:0 auto; padding:0 0 80px; }
+
+  header {
+    padding: 20px 16px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { display:flex; align-items:center; gap:8px; }
+  .logo-icon {
+    width:32px; height:32px; background: var(--green);
+    border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px;
+  }
+  .logo-text { font-size:18px; font-weight:800; letter-spacing:-0.5px; color: var(--text); }
+  .logo-text span { color: var(--green); }
+
+  .lang-btn {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text-dim); padding: 6px 12px; border-radius:6px;
+    font-family:'Space Mono', monospace; font-size:11px; cursor:pointer; transition: all 0.2s;
+  }
+  .lang-btn:hover { border-color:var(--green); color:var(--green); }
+
+  .tabs {
+    display:flex; padding: 12px 16px; gap:8px;
+    overflow-x:auto; scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab {
+    flex-shrink:0; padding: 8px 16px; border-radius:20px;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--text-dim); font-size:13px; font-weight:600;
+    cursor:pointer; transition: all 0.2s; white-space:nowrap;
+  }
+  .tab.active { background: var(--green); color: #0a0f0a; border-color: var(--green); }
+
+  .page { display:none; padding:0 16px; }
+  .page.active { display:block; }
+
+  .section-title {
+    font-family:'Space Mono', monospace; font-size:10px;
+    color: var(--text-muted); letter-spacing:2px;
+    text-transform:uppercase; margin: 20px 0 10px;
+  }
+
+  .price-hero {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius:16px; padding:20px; margin-bottom:12px;
+    position:relative; overflow:hidden;
+  }
+  .price-hero::before {
+    content:''; position:absolute; top:-40px; right:-40px;
+    width:120px; height:120px; background: var(--green-glow);
+    border-radius:50%; filter:blur(30px);
+  }
+  .price-region { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .flag { font-size:20px; }
+  .region-name { font-size:13px; font-weight:600; color:var(--text-dim); }
+  .price-value {
+    font-family:'Space Mono', monospace; font-size:36px;
+    font-weight:700; color: var(--accent); line-height:1; margin-bottom:4px;
+  }
+  .price-unit { font-size:11px; color:var(--text-muted); font-family:'Space Mono', monospace; }
+  .price-change {
+    display:inline-flex; align-items:center; gap:4px; margin-top:10px;
+    padding:4px 10px; border-radius:20px;
+    font-family:'Space Mono', monospace; font-size:12px; font-weight:700;
+  }
+  .price-change.up { background:rgba(34,197,94,0.1); color:var(--green); }
+  .price-change.down { background:rgba(239,68,68,0.1); color:var(--red); }
+
+  .price-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .price-mini {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius:12px; padding:14px;
+  }
+  .price-mini .flag { font-size:16px; }
+  .price-mini .region-name { font-size:11px; margin-top:4px; }
+  .price-mini .price-value { font-size:22px; margin-top:6px; }
+  .price-mini .price-change { font-size:10px; padding:3px 8px; }
+
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius:16px; padding:16px; margin-bottom:12px;
+  }
+  .chart-label { font-size:12px; color:var(--text-dim); margin-bottom:14px; font-weight:600; }
+  .chart-bars { display:flex; align-items:flex-end; gap:6px; height:80px; }
+  .bar-wrap {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    gap:4px; height:100%; justify-content:flex-end; cursor:pointer;
+  }
+  .bar { width:100%; border-radius:4px 4px 0 0; background: var(--green-dim); transition: height 0.6s ease; min-height:4px; }
+  .bar.active { background: var(--green); }
+  .bar-wrap:hover .bar { background: var(--accent); }
+  .bar-lbl { font-family:'Space Mono',monospace; font-size:8px; color:var(--text-muted); }
+
+  .news-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius:12px; padding:14px; margin-bottom:8px;
+    display:flex; gap:12px; align-items:flex-start;
+    cursor:pointer; transition: border-color 0.2s; text-decoration:none;
+  }
+  .news-card:hover { border-color:var(--green); }
+  .news-badge {
+    flex-shrink:0; padding:3px 8px; border-radius:4px;
+    font-size:9px; font-family:'Space Mono',monospace;
+    font-weight:700; letter-spacing:1px;
+  }
+  .badge-eu { background:rgba(59,130,246,0.2); color:#60a5fa; }
+  .badge-kr { background:rgba(239,68,68,0.2); color:#f87171; }
+  .badge-us { background:rgba(234,179,8,0.2); color:#facc15; }
+  .news-title { font-size:13px; font-weight:600; line-height:1.4; color:var(--text); }
+  .news-time { font-size:10px; color:var(--text-muted); margin-top:4px; font-family:'Space Mono',monospace; }
+
+  .pro-banner {
+    background: linear-gradient(135deg, #052e16, #14532d);
+    border: 1px solid var(--green-dim); border-radius:16px;
+    padding:20px; margin-bottom:16px; text-align:center;
+    position:relative; overflow:hidden;
+  }
+  .pro-banner::before {
+    content:''; position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:200px; height:2px; background: var(--green);
+  }
+  .pro-icon { font-size:32px; margin-bottom:8px; }
+  .pro-title { font-size:20px; font-weight:800; color:var(--accent); margin-bottom:6px; }
+  .pro-desc { font-size:13px; color:var(--text-dim); line-height:1.5; margin-bottom:16px; }
+  .pro-price { font-family:'Space Mono',monospace; font-size:28px; font-weight:700; color:var(--text); margin-bottom:4px; }
+  .pro-price span { font-size:13px; color:var(--text-dim); }
+
+  .pro-btn-soon {
+    display:block; width:100%; background:var(--surface); color:var(--text-muted);
+    border:1px dashed var(--border); border-radius:10px; padding:14px;
+    font-size:14px; font-weight:700; font-family:'Syne',sans-serif;
+    cursor:default; margin-top:16px; text-align:center; letter-spacing:0.5px;
+  }
+
+  .feature-list { margin-bottom:16px; }
+  .feature-item {
+    display:flex; align-items:center; gap:10px;
+    padding:12px 14px; background:var(--card);
+    border:1px solid var(--border); border-radius:10px;
+    margin-bottom:8px; font-size:13px;
+  }
+  .feature-icon { font-size:18px; }
+  .feature-free { color:var(--text-muted); font-size:10px; font-family:'Space Mono',monospace; margin-left:auto; }
+  .feature-pro { color:var(--green); font-size:10px; font-family:'Space Mono',monospace; margin-left:auto; font-weight:700; }
+
+  .tracker-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:16px; margin-bottom:12px;
+  }
+  .tracker-title { font-size:14px; font-weight:700; margin-bottom:14px; }
+  .input-row { display:flex; gap:8px; margin-bottom:10px; }
+  .tracker-input {
+    flex:1; background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:10px 12px; color:var(--text);
+    font-family:'Syne',sans-serif; font-size:13px; outline:none;
+  }
+  .tracker-input:focus { border-color:var(--green); }
+  .tracker-select {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:10px 8px; color:var(--text);
+    font-family:'Syne',sans-serif; font-size:12px; outline:none;
+  }
+  .add-btn {
+    background:var(--green); color:#0a0f0a; border:none; border-radius:8px;
+    padding:10px 16px; font-weight:700; font-size:13px;
+    cursor:pointer; font-family:'Syne',sans-serif;
+  }
+  .emission-list { margin-top:8px; }
+  .emission-item {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--border); font-size:13px;
+  }
+  .emission-item:last-child { border-bottom:none; }
+  .emission-cat { color:var(--text-dim); }
+  .emission-val { font-family:'Space Mono',monospace; color:var(--accent); font-size:12px; }
+  .total-row {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:12px; padding-top:12px; border-top:1px solid var(--green-dim);
+  }
+  .total-label { font-weight:700; font-size:13px; }
+  .total-val { font-family:'Space Mono',monospace; color:var(--green); font-size:18px; font-weight:700; }
+
+  .bottom-nav {
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:480px;
+    background:rgba(10,15,10,0.95); backdrop-filter:blur(12px);
+    border-top:1px solid var(--border); display:flex; z-index:100;
+  }
+  .nav-item {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    padding:10px 0 14px; cursor:pointer; transition: color 0.2s; color:var(--text-muted);
+  }
+  .nav-item.active { color:var(--green); }
+  .nav-icon { font-size:20px; }
+  .nav-label { font-size:9px; font-family:'Space Mono',monospace; margin-top:3px; letter-spacing:0.5px; }
+
+  .lock-overlay {
+    background:rgba(10,15,10,0.85); border:1px solid var(--border);
+    border-radius:12px; padding:20px; text-align:center; backdrop-filter:blur(4px);
+  }
+  .lock-icon { font-size:28px; margin-bottom:8px; }
+  .lock-text { font-size:13px; color:var(--text-dim); margin-bottom:12px; }
+  .lock-btn {
+    background:var(--green); color:#0a0f0a; border:none; border-radius:8px;
+    padding:10px 20px; font-weight:800; font-size:13px;
+    cursor:pointer; font-family:'Syne',sans-serif;
+  }
+
+  .live-dot {
+    display:inline-block; width:6px; height:6px; background:var(--green);
+    border-radius:50%; margin-right:6px; animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .update-bar {
+    background:var(--green-glow); border:1px solid var(--border);
+    border-radius:8px; padding:8px 12px; font-size:11px; color:var(--text-dim);
+    font-family:'Space Mono',monospace; margin-bottom:12px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .beta-badge {
+    background:rgba(234,179,8,0.15); color:#eab308;
+    border:1px solid rgba(234,179,8,0.3); border-radius:4px;
+    padding:2px 7px; font-size:9px; font-weight:700; letter-spacing:1px;
+    flex-shrink:0; margin-left:8px;
+  }
+  .lang-dropdown { position:relative; }
+  .lang-menu {
+    display:none; position:absolute; top:110%; right:0; z-index:200;
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    overflow:hidden; min-width:130px; box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  }
+  .lang-menu.open { display:block; }
+  .lang-option {
+    padding:10px 14px; font-size:13px; cursor:pointer;
+    display:flex; align-items:center; gap:8px; color:var(--text-dim);
+    transition:background 0.15s;
+  }
+  .lang-option:hover { background:var(--surface); color:var(--text); }
+  .lang-option.selected { color:var(--green); font-weight:700; }
+
+  .footer-links {
+    display:flex; justify-content:center; gap:20px;
+    padding:16px; border-top:1px solid var(--border); margin-top:8px;
+  }
+  .footer-link {
+    font-size:11px; color:var(--text-muted); font-family:'Space Mono',monospace;
+    text-decoration:none; transition:color 0.2s;
+  }
+  .footer-link:hover { color:var(--green); }
+
+  .target-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:14px; margin-bottom:12px;
+  }
+  .target-title { font-size:11px; font-family:'Space Mono',monospace; color:var(--text-muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
+  .target-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .target-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); }
+
+  .disclaimer-bar {
+    background: rgba(234,179,8,0.08);
+    border: 1px solid rgba(234,179,8,0.2);
+    border-radius:8px; padding:10px 12px;
+    font-size:11px; color: #a38a00;
+    font-family:'Space Mono',monospace;
+    margin-bottom:12px; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🌿</div>
+      <div class="logo-text">Carbon<span>Track</span></div>
+    </div>
+    <div class="lang-dropdown">
+      <!-- ✅ 수정1: 초기값을 한국어로 표시 (setLang(1) 호출로 동기화) -->
+      <button class="lang-btn" onclick="toggleLangMenu()" id="langBtn">🇰🇷 한국어</button>
+      <div class="lang-menu" id="langMenu">
+        <div class="lang-option" onclick="setLang(0)">🇺🇸 English</div>
+        <div class="lang-option selected" onclick="setLang(1)">🇰🇷 한국어</div>
+        <div class="lang-option" onclick="setLang(2)">🇯🇵 日本語</div>
+        <div class="lang-option" onclick="setLang(3)">🇪🇸 Español</div>
+        <div class="lang-option" onclick="setLang(4)">🇹🇭 ภาษาไทย</div>
+        <div class="lang-option" onclick="setLang(5)">🇨🇳 中文</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showPage('market')" id="tab-market">📈 Market</div>
+    <div class="tab" onclick="showPage('news')" id="tab-news">📰 News</div>
+    <div class="tab" onclick="showPage('business')" id="tab-business">🏢 Business</div>
+    <div class="tab" onclick="showPage('tracker')" id="tab-tracker">📊 Tracker</div>
+  </div>
+
+  <!-- MARKET PAGE -->
+  <div class="page active" id="page-market">
+    <div class="update-bar">
+      <span><span class="live-dot"></span><span id="txt-updated">Updated: May 19, 2026 · 09:00 UTC</span></span>
+      <span class="beta-badge">BETA DATA</span>
+    </div>
+    <div class="disclaimer-bar" id="txt-disclaimer">
+      ⚠️ Prices shown are for informational purposes only. Not financial advice. Always verify with official exchange data before trading.
+    </div>
+    <div class="section-title" id="txt-prices">CARBON PRICES</div>
+    <div class="price-hero">
+      <div class="price-region">
+        <span class="flag">🇪🇺</span>
+        <span class="region-name">EU ETS (European Carbon)</span>
+      </div>
+      <div class="price-value">€68.40</div>
+      <div class="price-unit">per tonne CO₂ · EUA</div>
+      <div class="price-change up">▲ +1.24 (+1.84%)</div>
+    </div>
+    <div class="price-grid">
+      <div class="price-mini">
+        <div class="flag">🇰🇷</div>
+        <div class="region-name">Korea ETS · KAU</div>
+        <div class="price-value">₩9,200</div>
+        <div class="price-change down">▼ -120 (-1.29%)</div>
+      </div>
+      <div class="price-mini">
+        <div class="flag">🇺🇸</div>
+        <div class="region-name">US RGGI · Allowance</div>
+        <div class="price-value">$14.85</div>
+        <div class="price-change up">▲ +0.15 (+1.02%)</div>
+      </div>
+    </div>
+    <div class="chart-card" onpointerleave="applyChartTitle()">
+      <div class="chart-label" id="txt-chart">EU ETS — 7 Day Trend (€/tonne)</div>
+      <div class="chart-bars" id="chartBars"></div>
+    </div>
+  </div>
+
+  <!-- NEWS PAGE -->
+  <div class="page" id="page-news">
+    <div class="section-title" id="txt-latest">LATEST NEWS</div>
+    <a class="news-card" href="https://www.reuters.com/business/energy/" target="_blank" rel="noopener">
+      <div>
+        <span class="news-badge badge-eu">EU</span>
+        <div class="news-title">EU Carbon Price Rises as Industrial Output Data Beats Estimates</div>
+        <div class="news-time">2h ago · Reuters</div>
+      </div>
+    </a>
+    <a class="news-card" href="https://www.koreaherald.com/search/detail/view.php?ud=20260519" target="_blank" rel="noopener">
+      <div>
+        <span class="news-badge badge-kr">KR</span>
+        <div class="news-title">Korea ETS: Ministry Plans Tighter Allocation Rules for 2027</div>
+        <div class="news-time">5h ago · Korea Herald</div>
+      </div>
+    </a>
+    <a class="news-card" href="https://ec.europa.eu/taxation_customs/carbon-border-adjustment-mechanism_en" target="_blank" rel="noopener">
+      <div>
+        <span class="news-badge badge-eu">EU</span>
+        <div class="news-title">CBAM Carbon Border Tax Now Fully Enforced — What Exporters Must Know</div>
+        <div class="news-time">1d ago · European Commission</div>
+      </div>
+    </a>
+    <a class="news-card" href="https://ww2.arb.ca.gov/our-work/programs/cap-and-trade-program" target="_blank" rel="noopener">
+      <div>
+        <span class="news-badge badge-us">US</span>
+        <div class="news-title">California Cap-and-Trade Auction Hits Record $16.2/tonne</div>
+        <div class="news-time">2d ago · CARB</div>
+      </div>
+    </a>
+    <a class="news-card" href="https://www.euractiv.com/section/energy-environment/" target="_blank" rel="noopener">
+      <div>
+        <span class="news-badge badge-eu">EU</span>
+        <div class="news-title">Steel &amp; Cement Sectors Face Steeper Carbon Costs Under Phase 4</div>
+        <div class="news-time">3d ago · Euractiv</div>
+      </div>
+    </a>
+    <a class="news-card" href="https://www.hankyung.com/economy" target="_blank" rel="noopener">
+      <div>
+        <span class="news-badge badge-kr">KR</span>
+        <div class="news-title">삼성·현대 등 대기업 탄소배출권 구매 규모 역대 최고치 경신</div>
+        <div class="news-time">4d ago · 한국경제</div>
+      </div>
+    </a>
+  </div>
+
+  <!-- BUSINESS PAGE -->
+  <div class="page" id="page-business">
+    <div class="target-card">
+      <div class="target-title" id="txt-target-title">Who is this app for?</div>
+      <div class="target-grid">
+        <div class="target-item" id="txt-target-1">🏭 Carbon traders</div>
+        <div class="target-item" id="txt-target-2">🌱 ESG managers</div>
+        <div class="target-item" id="txt-target-3">⚙️ Manufacturers</div>
+        <div class="target-item" id="txt-target-4">🚢 Export companies</div>
+      </div>
+    </div>
+    <div class="pro-banner">
+      <div class="pro-icon">🏢</div>
+      <div class="pro-title" id="txt-pro-title">CarbonTrack Pro</div>
+      <div class="pro-desc" id="txt-pro-desc">Complete carbon management for your business. Track emissions, generate reports, and stay compliant — automatically.</div>
+      <div class="pro-price">$9.99 <span id="txt-month">/ month</span></div>
+      <div class="pro-btn-soon" id="txt-coming-soon">🔔 Coming Soon — Subscription via Google Play</div>
+    </div>
+    <div class="section-title" id="txt-features">FEATURES</div>
+    <div class="feature-list">
+      <div class="feature-item"><span class="feature-icon">📈</span><span id="txt-f1">Live Carbon Prices (EU/KR/US)</span><span class="feature-free">FREE</span></div>
+      <div class="feature-item"><span class="feature-icon">📰</span><span id="txt-f2">Carbon Market News</span><span class="feature-free">FREE</span></div>
+      <div class="feature-item"><span class="feature-icon">📊</span><span id="txt-f3">Emission Tracker</span><span class="feature-pro">PRO</span></div>
+      <div class="feature-item"><span class="feature-icon">📄</span><span id="txt-f4">Compliance Reports (PDF)</span><span class="feature-pro">PRO</span></div>
+      <div class="feature-item"><span class="feature-icon">🔔</span><span id="txt-f5">Price Alerts &amp; Notifications</span><span class="feature-pro">PRO</span></div>
+      <div class="feature-item"><span class="feature-icon">🌍</span><span id="txt-f6">CBAM Export Compliance Check</span><span class="feature-pro">PRO</span></div>
+      <div class="feature-item"><span class="feature-icon">👥</span><span id="txt-f7">Multi-user Team Access</span><span class="feature-pro">PRO</span></div>
+    </div>
+  </div>
+
+  <!-- TRACKER PAGE -->
+  <div class="page" id="page-tracker">
+    <div class="section-title" id="txt-tracker-title">EMISSION TRACKER</div>
+    <div class="lock-overlay" id="lockOverlay">
+      <div class="lock-icon">🔒</div>
+      <div class="lock-text" id="txt-lock">This feature requires CarbonTrack Pro subscription.</div>
+      <button class="lock-btn" onclick="showPage('business')" id="txt-lock-btn">Upgrade to Pro</button>
+    </div>
+    <div style="margin-top:16px; opacity:0.3; pointer-events:none;">
+      <div class="tracker-card">
+        <div class="tracker-title" id="txt-add-emission">Add Emission Record</div>
+        <div class="input-row">
+          <select class="tracker-select">
+            <option>⚡ Energy</option>
+            <option>🚗 Transport</option>
+            <option>🏭 Production</option>
+            <option>✈️ Travel</option>
+          </select>
+          <input class="tracker-input" placeholder="Amount (tCO₂)" type="number">
+          <button class="add-btn">+ Add</button>
+        </div>
+      </div>
+      <div class="tracker-card">
+        <div class="tracker-title">Monthly Summary</div>
+        <div class="emission-list">
+          <div class="emission-item"><span class="emission-cat">⚡ Energy</span><span class="emission-val">142.5 tCO₂</span></div>
+          <div class="emission-item"><span class="emission-cat">🚗 Transport</span><span class="emission-val">38.2 tCO₂</span></div>
+          <div class="emission-item"><span class="emission-cat">🏭 Production</span><span class="emission-val">287.0 tCO₂</span></div>
+        </div>
+        <div class="total-row">
+          <span class="total-label">Total Emissions</span>
+          <span class="total-val">467.7 tCO₂</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER LINKS -->
+<div class="footer-links">
+  <a class="footer-link" href="https://kpopnews-world.github.io/carbontrack-privacy/" target="_blank">Privacy Policy</a>
+  <a class="footer-link" href="https://kpopnews-world.github.io/carbontrack-privacy/terms" target="_blank">Terms of Service</a>
+  <a class="footer-link" href="mailto:contact@carbontrack.app">Contact</a>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item active" onclick="showPage('market')" id="nav-market"><span class="nav-icon">📈</span><span class="nav-label" id="nav-lbl-market">MARKET</span></div>
+  <div class="nav-item" onclick="showPage('news')" id="nav-news"><span class="nav-icon">📰</span><span class="nav-label" id="nav-lbl-news">NEWS</span></div>
+  <div class="nav-item" onclick="showPage('business')" id="nav-business"><span class="nav-icon">🏢</span><span class="nav-label" id="nav-lbl-business">BUSINESS</span></div>
+  <div class="nav-item" onclick="showPage('tracker')" id="nav-tracker"><span class="nav-icon">📊</span><span class="nav-label" id="nav-lbl-tracker">TRACKER</span></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+// BACK BUTTON DEFENSE
+// ─────────────────────────────────────────────────────────
+history.pushState({ page: 'market' }, '');
+window.addEventListener('popstate', function(e) {
+  showPage('market');
+  history.pushState({ page: 'market' }, '');
+});
+
+// ─────────────────────────────────────────────────────────
+// PAGE NAVIGATION
+// ─────────────────────────────────────────────────────────
+let currentPage = 'market';
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  currentPage = name;
+  history.pushState({ page: name }, '');
+}
+
+// ─────────────────────────────────────────────────────────
+// MULTILANGUAGE (EN/KO/JA/ES/TH/ZH)
+// ─────────────────────────────────────────────────────────
+const T = [
+  // 0: English
+  {
+    'txt-updated':'Updated: May 19, 2026 · 09:00 UTC',
+    'txt-disclaimer':'⚠️ Prices shown are for informational purposes only. Not financial advice. Always verify with official exchange data before trading.',
+    'txt-prices':'CARBON PRICES','txt-chart':'EU ETS — 7 Day Trend (€/tonne)',
+    'txt-latest':'LATEST NEWS',
+    'txt-pro-title':'CarbonTrack Pro',
+    'txt-pro-desc':'Complete carbon management for your business. Track emissions, generate reports, and stay compliant — automatically.',
+    'txt-month':'/ month',
+    'txt-features':'FEATURES',
+    'txt-f1':'Live Carbon Prices (EU/KR/US)','txt-f2':'Carbon Market News',
+    'txt-f3':'Emission Tracker','txt-f4':'Compliance Reports (PDF)',
+    'txt-f5':'Price Alerts & Notifications','txt-f6':'CBAM Export Compliance Check',
+    'txt-f7':'Multi-user Team Access',
+    'txt-tracker-title':'EMISSION TRACKER',
+    'txt-lock':'This feature requires CarbonTrack Pro subscription.',
+    'txt-lock-btn':'Upgrade to Pro','txt-add-emission':'Add Emission Record',
+    'nav-lbl-market':'MARKET','nav-lbl-news':'NEWS','nav-lbl-business':'BUSINESS','nav-lbl-tracker':'TRACKER',
+    'txt-target-title':'Who is this app for?',
+    'txt-target-1':'🏭 Carbon traders','txt-target-2':'🌱 ESG managers',
+    'txt-target-3':'⚙️ Manufacturers','txt-target-4':'🚢 Export companies',
+    'txt-coming-soon':'🔔 Coming Soon — Subscription via Google Play'
+  },
+  // 1: Korean
+  {
+    'txt-updated':'업데이트: 2026년 5월 19일 · 09:00 UTC',
+    'txt-disclaimer':'⚠️ 표시된 가격은 정보 제공 목적으로만 사용됩니다. 투자 조언이 아닙니다. 거래 전 반드시 공식 거래소 데이터를 확인하세요.',
+    'txt-prices':'탄소 시세','txt-chart':'EU ETS — 7일 추이 (€/톤)',
+    'txt-latest':'최신 뉴스',
+    'txt-pro-title':'CarbonTrack Pro',
+    'txt-pro-desc':'기업용 완전 탄소관리. 배출량 추적, 보고서 자동 생성, 규정 준수를 자동으로.',
+    'txt-month':'/ 월',
+    'txt-features':'기능',
+    'txt-f1':'실시간 탄소 시세 (EU/KR/US)','txt-f2':'탄소 시장 뉴스',
+    'txt-f3':'배출량 추적기','txt-f4':'규정 준수 보고서 (PDF)',
+    'txt-f5':'가격 알림','txt-f6':'CBAM 수출 규정 확인',
+    'txt-f7':'다중 사용자 팀 접근',
+    'txt-tracker-title':'배출량 추적기',
+    'txt-lock':'이 기능은 CarbonTrack Pro 구독이 필요합니다.',
+    'txt-lock-btn':'Pro로 업그레이드','txt-add-emission':'배출량 기록 추가',
+    'nav-lbl-market':'시세','nav-lbl-news':'뉴스','nav-lbl-business':'비즈니스','nav-lbl-tracker':'추적기',
+    'txt-target-title':'이 앱은 누구를 위한 것인가요?',
+    'txt-target-1':'🏭 탄소 거래자','txt-target-2':'🌱 ESG 담당자',
+    'txt-target-3':'⚙️ 제조업체','txt-target-4':'🚢 수출 기업',
+    'txt-coming-soon':'🔔 출시 예정 — Google Play 구독'
+  },
+  // 2: Japanese
+  {
+    'txt-updated':'更新: 2026年5月19日 · 09:00 UTC',
+    'txt-disclaimer':'⚠️ 表示価格は情報提供のみを目的としています。投資アドバイスではありません。取引前に必ず公式取引所データを確認してください。',
+    'txt-prices':'炭素価格','txt-chart':'EU ETS — 7日間推移 (€/トン)',
+    'txt-latest':'最新ニュース',
+    'txt-pro-title':'CarbonTrack Pro',
+    'txt-pro-desc':'企業向け完全炭素管理。排出量追跡、レポート自動生成、コンプライアンス対応を自動化。',
+    'txt-month':'/ 月',
+    'txt-features':'機能',
+    'txt-f1':'リアルタイム炭素価格 (EU/KR/US)','txt-f2':'炭素市場ニュース',
+    'txt-f3':'排出量トラッカー','txt-f4':'コンプライアンスレポート (PDF)',
+    'txt-f5':'価格アラート・通知','txt-f6':'CBAM輸出コンプライアンス確認',
+    'txt-f7':'マルチユーザーチームアクセス',
+    'txt-tracker-title':'排出量トラッカー',
+    'txt-lock':'この機能はCarbonTrack Proの登録が必要です。',
+    'txt-lock-btn':'Proにアップグレード','txt-add-emission':'排出量記録を追加',
+    'nav-lbl-market':'市場','nav-lbl-news':'ニュース','nav-lbl-business':'ビジネス','nav-lbl-tracker':'追跡',
+    'txt-target-title':'このアプリは誰のためですか？',
+    'txt-target-1':'🏭 炭素トレーダー','txt-target-2':'🌱 ESG担当者',
+    'txt-target-3':'⚙️ 製造業者','txt-target-4':'🚢 輸出企業',
+    'txt-coming-soon':'🔔 近日公開 — Google Playにて登録受付予定'
+  },
+  // 3: Spanish
+  {
+    'txt-updated':'Actualizado: 19 May 2026 · 09:00 UTC',
+    'txt-disclaimer':'⚠️ Los precios mostrados son solo informativos. No son asesoramiento financiero. Verifique siempre con datos oficiales antes de operar.',
+    'txt-prices':'PRECIOS DE CARBONO','txt-chart':'EU ETS — Tendencia 7 días (€/ton)',
+    'txt-latest':'ÚLTIMAS NOTICIAS',
+    'txt-pro-title':'CarbonTrack Pro',
+    'txt-pro-desc':'Gestión completa de carbono para su empresa. Rastree emisiones, genere informes y cumpla normativas automáticamente.',
+    'txt-month':'/ mes',
+    'txt-features':'FUNCIONES',
+    'txt-f1':'Precios en vivo (EU/KR/US)','txt-f2':'Noticias del mercado de carbono',
+    'txt-f3':'Rastreador de emisiones','txt-f4':'Informes de cumplimiento (PDF)',
+    'txt-f5':'Alertas de precios','txt-f6':'Verificación CBAM',
+    'txt-f7':'Acceso multiusuario',
+    'txt-tracker-title':'RASTREADOR DE EMISIONES',
+    'txt-lock':'Esta función requiere suscripción CarbonTrack Pro.',
+    'txt-lock-btn':'Actualizar a Pro','txt-add-emission':'Agregar registro de emisión',
+    'nav-lbl-market':'MERCADO','nav-lbl-news':'NOTICIAS','nav-lbl-business':'NEGOCIO','nav-lbl-tracker':'RASTREO',
+    'txt-target-title':'¿Para quién es esta app?',
+    'txt-target-1':'🏭 Traders de carbono','txt-target-2':'🌱 Gestores ESG',
+    'txt-target-3':'⚙️ Fabricantes','txt-target-4':'🚢 Empresas exportadoras',
+    'txt-coming-soon':'🔔 Próximamente — Suscripción vía Google Play'
+  },
+  // 4: Thai
+  {
+    'txt-updated':'อัปเดต: 19 พ.ค. 2026 · 09:00 UTC',
+    'txt-disclaimer':'⚠️ ราคาที่แสดงมีไว้เพื่อให้ข้อมูลเท่านั้น ไม่ใช่คำแนะนำทางการเงิน โปรดตรวจสอบข้อมูลจากตลาดทางการก่อนทำธุรกรรมเสมอ',
+    'txt-prices':'ราคาคาร์บอน','txt-chart':'EU ETS — แนวโน้ม 7 วัน (€/ตัน)',
+    'txt-latest':'ข่าวล่าสุด',
+    'txt-pro-title':'CarbonTrack Pro',
+    'txt-pro-desc':'การจัดการคาร์บอนครบวงจรสำหรับธุรกิจของคุณ ติดตามการปล่อยมลพิษ สร้างรายงาน และปฏิบัติตามกฎระเบียบโดยอัตโนมัติ',
+    'txt-month':'/ เดือน',
+    'txt-features':'คุณสมบัติ',
+    'txt-f1':'ราคาคาร์บอนสด (EU/KR/US)','txt-f2':'ข่าวตลาดคาร์บอน',
+    'txt-f3':'ตัวติดตามการปล่อยมลพิษ','txt-f4':'รายงานการปฏิบัติตามกฎระเบียบ (PDF)',
+    'txt-f5':'การแจ้งเตือนราคา','txt-f6':'การตรวจสอบ CBAM',
+    'txt-f7':'การเข้าถึงหลายผู้ใช้',
+    'txt-tracker-title':'ตัวติดตามการปล่อยมลพิษ',
+    'txt-lock':'คุณสมบัตินี้ต้องการการสมัครสมาชิก CarbonTrack Pro',
+    'txt-lock-btn':'อัปเกรดเป็น Pro','txt-add-emission':'เพิ่มบันทึกการปล่อยมลพิษ',
+    'nav-lbl-market':'ตลาด','nav-lbl-news':'ข่าว','nav-lbl-business':'ธุรกิจ','nav-lbl-tracker':'ติดตาม',
+    'txt-target-title':'แอปนี้เหมาะสำหรับใคร?',
+    'txt-target-1':'🏭 ผู้ค้าคาร์บอน','txt-target-2':'🌱 ผู้จัดการ ESG',
+    'txt-target-3':'⚙️ ผู้ผลิต','txt-target-4':'🚢 บริษัทส่งออก',
+    'txt-coming-soon':'🔔 เร็วๆ นี้ — สมัครสมาชิกผ่าน Google Play'
+  },
+  // 5: Chinese
+  {
+    'txt-updated':'更新: 2026年5月19日 · 09:00 UTC',
+    'txt-disclaimer':'⚠️ 显示的价格仅供参考，不构成投资建议。交易前请务必核实官方交易所数据。',
+    'txt-prices':'碳价格','txt-chart':'EU ETS — 7日走势 (€/吨)',
+    'txt-latest':'最新新闻',
+    'txt-pro-title':'CarbonTrack Pro',
+    'txt-pro-desc':'为您的企业提供完整的碳管理解决方案。自动追踪排放量、生成报告并确保合规。',
+    'txt-month':'/ 月',
+    'txt-features':'功能',
+    'txt-f1':'实时碳价格 (EU/KR/US)','txt-f2':'碳市场新闻',
+    'txt-f3':'排放量追踪器','txt-f4':'合规报告 (PDF)',
+    'txt-f5':'价格提醒与通知','txt-f6':'CBAM出口合规检查',
+    'txt-f7':'多用户团队访问',
+    'txt-tracker-title':'排放量追踪器',
+    'txt-lock':'此功能需要CarbonTrack Pro订阅。',
+    'txt-lock-btn':'升级到Pro','txt-add-emission':'添加排放记录',
+    'nav-lbl-market':'市场','nav-lbl-news':'新闻','nav-lbl-business':'商业','nav-lbl-tracker':'追踪',
+    'txt-target-title':'这款应用适合谁？',
+    'txt-target-1':'🏭 碳交易商','txt-target-2':'🌱 ESG经理',
+    'txt-target-3':'⚙️ 制造商','txt-target-4':'🚢 出口企业',
+    'txt-coming-soon':'🔔 即将推出 — 通过Google Play订阅'
+  }
+];
+
+// ─────────────────────────────────────────────────────────
+// LANGUAGE DROPDOWN
+// ─────────────────────────────────────────────────────────
+const langNames = ['🇺🇸 English','🇰🇷 한국어','🇯🇵 日本語','🇪🇸 Español','🇹🇭 ภาษาไทย','🇨🇳 中文'];
+let langIdx = 1;
+
+function toggleLangMenu() {
+  document.getElementById('langMenu').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.lang-dropdown')) {
+    document.getElementById('langMenu').classList.remove('open');
+  }
+});
+function setLang(idx) {
+  langIdx = idx;
+  document.querySelectorAll('.lang-option').forEach((el, i) => {
+    el.classList.toggle('selected', i === idx);
+  });
+  document.getElementById('langBtn').textContent = langNames[idx];
+  document.getElementById('langMenu').classList.remove('open');
+  applyLang();
+  applyChartTitle();
+}
+
+function applyLang() {
+  const t = T[langIdx];
+  for (const [id, val] of Object.entries(t)) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// CHART — ✅ 수정2: ontouchstart/end → onpointerover/out 으로 교체
+// ─────────────────────────────────────────────────────────
+const prices = [64.2, 65.8, 63.9, 66.1, 67.4, 67.0, 68.4];
+const days   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const maxP = Math.max(...prices), minP = Math.min(...prices);
+const barsEl = document.getElementById('chartBars');
+const chartTitleEl = document.getElementById('txt-chart');
+
+function applyChartTitle() {
+  if (chartTitleEl && T[langIdx]) {
+    chartTitleEl.textContent = T[langIdx]['txt-chart'];
+  }
+}
+
+prices.forEach((p, i) => {
+  const h = ((p - minP) / (maxP - minP)) * 65 + 10;
+  barsEl.innerHTML += `
+    <div class="bar-wrap"
+      onpointerover="document.getElementById('txt-chart').textContent='${days[i]}: €${p.toFixed(1)}'"
+      onpointerout="applyChartTitle()">
+      <div class="bar ${i===6?'active':''}" style="height:${h}px"></div>
+      <div class="bar-lbl">${days[i]}</div>
+    </div>`;
+});
+
+// ✅ 수정3: setLang(1) 명시 호출 → 버튼·본문·차트 타이틀 완전 동기화
+setLang(1);
+</script>
+</body>
+</html>

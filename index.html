@@ -213,7 +213,6 @@
       <button class="lang-btn" onclick="setLang('ja')">🇯🇵 JA</button>
       <button class="lang-btn" onclick="setLang('th')">🇹🇭 TH</button>
       <button class="lang-btn" onclick="setLang('zh')">🇨🇳 ZH</button>
-      <button class="lang-btn" onclick="setLang('ar')">🇸🇦 AR</button>
     </div>
 
     <div class="how-box">
@@ -357,7 +356,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, increment, serverTimestamp, query, orderBy }
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, increment, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -554,36 +553,6 @@ const T = {
     toastErr:'发生错误，请重试。',
     confirmDelete:'删除此标记？',
     priceHintBase:'最多 $',
-  },
-  ar: {
-    wTitle:'📋 كيفية الاستخدام',
-    w1:'هذا التطبيق <strong>لوحة مجتمعية مجانية</strong> لمشاركة الأسعار الرخيصة الحقيقية. صفقات حقيقية فقط — لا رسائل مزعجة.',
-    w2:'الدبابيس التي تحصل على <strong>3+ إعجابات سلبية ستُخفى</strong>. يمكن إعادة النشر في اليوم التالي.',
-    w3:'تحقق دائماً من <strong>رقم الهاتف/SNS</strong> قبل الزيارة.',
-    wFood:'طعام', wBarber:'حلاقة', wStay:'إقامة',
-    wBtn:'ابدأ HomelessMap',
-    wDisclaimer:'باستخدام HomelessMap توافق على أن جميع الأسعار مقدمة من المستخدمين وغير مُتحقق منها. لسنا مسؤولين عن تغييرات الأسعار أو الأخطاء. لا نجمع معلومات شخصية.',
-    pTitle:'📍 إضافة دبوس جديد', pFood:'طعام', pBarber:'حلاقة', pStay:'إقامة',
-    pPriceLbl:'السعر (USD)', pNameLbl:'اسم المكان', pDescLbl:'الوصف',
-    pPhoneLbl:'الهاتف', pSnsLbl:'SNS', pContactHint:'الهاتف أو SNS مطلوب',
-    pDescHint:'ساعات العمل، القائمة، الخصومات...',
-    pCancel:'إلغاء', pSubmit:'إضافة دبوس ✅',
-    dVoteLbl:'هل السعر لا يزال دقيقاً؟',
-    dLike:'👍 نعم', dDislike:'👎 لا',
-    dEdit:'✏️ تعديل', dDelete:'🗑️ حذف', dClose:'إغلاق',
-    eTitle:'تعديل الدبوس', eSave:'حفظ ✅', eCancel:'إلغاء',
-    regionMsg:'⛔ هذه المنطقة غير متاحة',
-    toastCat:'اختر طعام / حلاقة / إقامة',
-    toastPrice:'أدخل سعراً صحيحاً',
-    toastContact:'الهاتف أو SNS مطلوب',
-    toastAdded:'تمت إضافة الدبوس! ✅',
-    toastHidden:'مخفي لمدة 24 ساعة. أعد النشر غداً.',
-    toastBadPrice:'الأسعار الخاطئة تُخفى تلقائياً!',
-    toastUpdated:'تم التحديث! ✅',
-    toastDeleted:'تم حذف الدبوس 🗑️',
-    toastErr:'خطأ. حاول مجدداً.',
-    confirmDelete:'حذف هذا الدبوس؟',
-    priceHintBase:'الحد الأقصى $',
   }
 };
 
@@ -637,11 +606,21 @@ function isExcluded(lat,lng){
 }
 
 // ── MAP ──
-const map = L.map('map',{zoomControl:true}).setView([36.5,127.5],5);
-map.locate({setView:true,maxZoom:14});
+const savedLat  = localStorage.getItem('hm_last_lat')  ? parseFloat(localStorage.getItem('hm_last_lat'))  : 20;
+const savedLng  = localStorage.getItem('hm_last_lng')  ? parseFloat(localStorage.getItem('hm_last_lng'))  : 20;
+const savedZoom = localStorage.getItem('hm_last_zoom') ? parseInt(localStorage.getItem('hm_last_zoom'))   : 2;
+const map = L.map('map',{zoomControl:true}).setView([savedLat, savedLng], savedZoom);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   attribution:'© OpenStreetMap', maxZoom:19
 }).addTo(map);
+map.on('moveend', function(){
+  const c = map.getCenter();
+  localStorage.setItem('hm_last_lat', c.lat);
+  localStorage.setItem('hm_last_lng', c.lng);
+});
+map.on('zoomend', function(){
+  localStorage.setItem('hm_last_zoom', map.getZoom());
+});
 
 // ── HELPERS ──
 function toast(msg){
@@ -689,13 +668,7 @@ function shouldHide(pin){
 // ── LOAD ──
 async function loadPins(){
   try{
-    let snap;
-    try{
-      const q=query(collection(db,COL),orderBy('ts','desc'));
-      snap=await getDocs(q);
-    }catch(e){
-      snap=await getDocs(collection(db,COL));
-    }
+    const snap=await getDocs(collection(db,COL));
     snap.forEach(d=>{
       const p={id:d.id,...d.data()};
       if(shouldHide(p)) return;
